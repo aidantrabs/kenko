@@ -2,28 +2,41 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status": "healthy"}`))
-}
-
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "6969"
+	}
+
+	// TODO: load targets from a config file
+	targets := []Target{
+		{Name: "google", URL: "https://www.google.com"},
+		{Name: "github", URL: "https://github.com"},
+	}
+
+	checker := NewChecker(targets, 30*time.Second, 5*time.Second, logger)
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	go checker.Run(ctx)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthCheckHandler)
+	mux.HandleFunc("/health", handleHealth(checker))
+	mux.HandleFunc("/status", handleStatus(checker))
 
 	server := &http.Server{
-		Addr:         ":6969",
+		Addr:         ":" + port,
 		Handler:      mux,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
@@ -31,21 +44,23 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("server starting on %s", server.Addr)
+		logger.Info("server starting", "addr", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			logger.Error("server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Println("shutdown signal received")
+	logger.Info("shutdown signal received")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("server shutdown error: %v", err)
+		logger.Error("server shutdown error", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("server stopped gracefully")
+	logger.Info("server stopped gracefully")
 }
