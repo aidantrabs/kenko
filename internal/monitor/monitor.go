@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aidantrabs/kenko/internal/config"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Status string
@@ -26,6 +27,28 @@ type Result struct {
 	Latency    time.Duration
 	Error      string
 	CheckedAt  time.Time
+}
+
+var (
+	checkDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "kenko_check_duration_seconds",
+		Help:    "duration of health checks",
+		Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5},
+	}, []string{"target"})
+
+	checkTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "kenko_check_total",
+		Help: "total number of health checks",
+	}, []string{"target", "status"})
+
+	targetUp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "kenko_target_up",
+		Help: "whether a target is healthy (1) or not (0)",
+	}, []string{"target"})
+)
+
+func init() {
+	prometheus.MustRegister(checkDuration, checkTotal, targetUp)
 }
 
 type Checker struct {
@@ -79,6 +102,14 @@ func (c *Checker) checkAll(ctx context.Context) {
 			c.mu.Lock()
 			c.results[t.Name] = result
 			c.mu.Unlock()
+
+			checkDuration.WithLabelValues(t.Name).Observe(result.Latency.Seconds())
+			checkTotal.WithLabelValues(t.Name, string(result.Status)).Inc()
+			if result.Status == StatusHealthy {
+				targetUp.WithLabelValues(t.Name).Set(1)
+			} else {
+				targetUp.WithLabelValues(t.Name).Set(0)
+			}
 
 			c.logger.Info("check complete",
 				"target", t.Name,
