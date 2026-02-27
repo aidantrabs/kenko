@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,18 +14,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "6969"
+	cfg, err := LoadConfig("config.yaml")
+	if err != nil {
+		logger.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
 
-	// TODO: load targets from a config file
-	targets := []Target{
-		{Name: "google", URL: "https://www.google.com"},
-		{Name: "github", URL: "https://github.com"},
-	}
-
-	checker := NewChecker(targets, 30*time.Second, 5*time.Second, logger)
+	checker := NewChecker(cfg.Targets, cfg.CheckInterval, cfg.CheckTimeout, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -36,7 +32,7 @@ func main() {
 	mux.HandleFunc("/status", handleStatus(checker))
 
 	server := &http.Server{
-		Addr:         ":" + port,
+		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      mux,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
