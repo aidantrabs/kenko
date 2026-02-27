@@ -1,0 +1,10 @@
+services:
+  kenko:
+    build: .
+    ports:
+      - "6969:6969"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:6969/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
