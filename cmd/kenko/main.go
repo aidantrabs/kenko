@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/aidantrabs/kenko/internal/config"
 	"github.com/aidantrabs/kenko/internal/monitor"
@@ -29,7 +30,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	checker := monitor.NewChecker(cfg.Targets, cfg.CheckInterval, cfg.CheckTimeout, logger)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisAddr,
+	})
+
+	checker := monitor.NewChecker(cfg.Targets, cfg.CheckInterval, cfg.CheckTimeout, rdb, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

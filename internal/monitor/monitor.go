@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/aidantrabs/kenko/internal/config"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redis/go-redis/v9"
 )
 
 type Status string
@@ -17,16 +19,18 @@ type Status string
 const (
 	StatusHealthy   Status = "healthy"
 	StatusUnhealthy Status = "unhealthy"
+
+	redisKey = "kenko:results"
 )
 
 type Result struct {
-	Target     string
-	URL        string
-	Status     Status
-	StatusCode int
-	Latency    time.Duration
-	Error      string
-	CheckedAt  time.Time
+	Target     string        `json:"target"`
+	URL        string        `json:"url"`
+	Status     Status        `json:"status"`
+	StatusCode int           `json:"status_code"`
+	Latency    time.Duration `json:"latency"`
+	Error      string        `json:"error,omitempty"`
+	CheckedAt  time.Time     `json:"checked_at"`
 }
 
 var (
@@ -53,6 +57,7 @@ func init() {
 
 type Checker struct {
 	client   *http.Client
+	rdb      *redis.Client
 	targets  []config.Target
 	interval time.Duration
 	logger   *slog.Logger
@@ -61,9 +66,10 @@ type Checker struct {
 	results map[string]Result
 }
 
-func NewChecker(targets []config.Target, interval, timeout time.Duration, logger *slog.Logger) *Checker {
+func NewChecker(targets []config.Target, interval, timeout time.Duration, rdb *redis.Client, logger *slog.Logger) *Checker {
 	return &Checker{
 		client:   &http.Client{Timeout: timeout},
+		rdb:      rdb,
 		targets:  targets,
 		interval: interval,
 		logger:   logger,
@@ -103,6 +109,8 @@ func (c *Checker) checkAll(ctx context.Context) {
 			c.results[t.Name] = result
 			c.mu.Unlock()
 
+			c.storeResult(ctx, t.Name, result)
+
 			checkDuration.WithLabelValues(t.Name).Observe(result.Latency.Seconds())
 			checkTotal.WithLabelValues(t.Name, string(result.Status)).Inc()
 			if result.Status == StatusHealthy {
@@ -120,6 +128,18 @@ func (c *Checker) checkAll(ctx context.Context) {
 	}
 
 	wg.Wait()
+}
+
+func (c *Checker) storeResult(ctx context.Context, name string, result Result) {
+	data, err := json.Marshal(result)
+	if err != nil {
+		c.logger.Error("failed to marshal result", "target", name, "error", err)
+		return
+	}
+
+	if err := c.rdb.HSet(ctx, redisKey, name, data).Err(); err != nil {
+		c.logger.Warn("failed to write to redis", "target", name, "error", err)
+	}
 }
 
 func (c *Checker) check(ctx context.Context, target config.Target) Result {
@@ -165,8 +185,23 @@ func (c *Checker) check(ctx context.Context, target config.Target) Result {
 	}
 }
 
-// returns a copy so callers can't corrupt internal state
+// reads from redis first, falls back to in-memory
 func (c *Checker) Results() map[string]Result {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	vals, err := c.rdb.HGetAll(ctx, redisKey).Result()
+	if err == nil && len(vals) > 0 {
+		out := make(map[string]Result, len(vals))
+		for name, data := range vals {
+			var r Result
+			if err := json.Unmarshal([]byte(data), &r); err == nil {
+				out[name] = r
+			}
+		}
+		return out
+	}
+
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

@@ -17,6 +17,7 @@ type Config struct {
 	Port          int           `yaml:"port"`
 	CheckInterval time.Duration `yaml:"check_interval"`
 	CheckTimeout  time.Duration `yaml:"check_timeout"`
+	RedisAddr     string        `yaml:"redis_addr"`
 	Targets       []Target      `yaml:"targets"`
 }
 

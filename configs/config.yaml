@@ -1,6 +1,7 @@
 port: 6969
 check_interval: 30s
 check_timeout: 5s
+redis_addr: redis:6379
 
 targets:
   - name: google
