@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -8,6 +8,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Target struct {
+	Name string `yaml:"name"`
+	URL  string `yaml:"url"`
+}
+
 type Config struct {
 	Port          int           `yaml:"port"`
 	CheckInterval time.Duration `yaml:"check_interval"`
@@ -15,7 +20,7 @@ type Config struct {
 	Targets       []Target      `yaml:"targets"`
 }
 
-func LoadConfig(path string) (*Config, error) {
+func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)

@@ -4,12 +4,12 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /bin/kenko .
+RUN CGO_ENABLED=0 go build -o /bin/kenko ./cmd/kenko
 
 FROM alpine:3.21
 
 COPY --from=build /bin/kenko /bin/kenko
-COPY config.yaml /etc/kenko/config.yaml
+COPY configs/config.yaml /etc/kenko/config.yaml
 
 EXPOSE 6969
 

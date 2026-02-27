@@ -1,4 +1,4 @@
-package main
+package monitor
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/aidantrabs/kenko/internal/config"
 )
 
 type Status string
@@ -15,11 +17,6 @@ const (
 	StatusHealthy   Status = "healthy"
 	StatusUnhealthy Status = "unhealthy"
 )
-
-type Target struct {
-	Name string `yaml:"name"`
-	URL  string `yaml:"url"`
-}
 
 type Result struct {
 	Target     string
@@ -33,7 +30,7 @@ type Result struct {
 
 type Checker struct {
 	client   *http.Client
-	targets  []Target
+	targets  []config.Target
 	interval time.Duration
 	logger   *slog.Logger
 
@@ -41,7 +38,7 @@ type Checker struct {
 	results map[string]Result
 }
 
-func NewChecker(targets []Target, interval, timeout time.Duration, logger *slog.Logger) *Checker {
+func NewChecker(targets []config.Target, interval, timeout time.Duration, logger *slog.Logger) *Checker {
 	return &Checker{
 		client:   &http.Client{Timeout: timeout},
 		targets:  targets,
@@ -75,7 +72,7 @@ func (c *Checker) checkAll(ctx context.Context) {
 
 	for _, target := range c.targets {
 		wg.Add(1)
-		go func(t Target) {
+		go func(t config.Target) {
 			defer wg.Done()
 			result := c.check(ctx, t)
 
@@ -94,7 +91,7 @@ func (c *Checker) checkAll(ctx context.Context) {
 	wg.Wait()
 }
 
-func (c *Checker) check(ctx context.Context, target Target) Result {
+func (c *Checker) check(ctx context.Context, target config.Target) Result {
 	start := time.Now()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.URL, nil)
