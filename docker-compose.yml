@@ -8,3 +8,13 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+
+  prometheus:
+    image: prom/prometheus:v3.3.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      kenko:
+        condition: service_healthy
