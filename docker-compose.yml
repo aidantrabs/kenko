@@ -1,13 +1,23 @@
 services:
   kenko:
     build: .
-    ports:
-      - "6969:6969"
+    deploy:
+      replicas: 3
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:6969/health"]
       interval: 10s
       timeout: 3s
       retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./configs/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      kenko:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:v3.3.0
