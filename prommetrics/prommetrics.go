@@ -5,16 +5,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// Option configures a Reporter.
 type Option func(*Reporter)
 
+// WithRegistry sets the Prometheus registerer (default prometheus.DefaultRegisterer).
 func WithRegistry(r prometheus.Registerer) Option {
 	return func(rep *Reporter) { rep.registerer = r }
 }
 
+// WithNamespace sets the Prometheus metric namespace prefix.
 func WithNamespace(ns string) Option {
 	return func(r *Reporter) { r.namespace = ns }
 }
 
+// Reporter implements MetricsReporter using Prometheus counters, gauges, and histograms.
 type Reporter struct {
 	registerer prometheus.Registerer
 	namespace  string
@@ -24,6 +28,7 @@ type Reporter struct {
 	targetUp      *prometheus.GaugeVec
 }
 
+// New creates a Reporter and registers its metrics with Prometheus.
 func New(opts ...Option) *Reporter {
 	r := &Reporter{
 		registerer: prometheus.DefaultRegisterer,
@@ -56,6 +61,7 @@ func New(opts ...Option) *Reporter {
 	return r
 }
 
+// ReportCheck records the result of a health check as Prometheus metrics.
 func (r *Reporter) ReportCheck(target string, status kenko.Status, latencySeconds float64) {
 	r.checkDuration.WithLabelValues(target).Observe(latencySeconds)
 	r.checkTotal.WithLabelValues(target, string(status)).Inc()

@@ -10,10 +10,12 @@ import (
 	"time"
 )
 
+// MetricsReporter is implemented by types that record health check metrics.
 type MetricsReporter interface {
 	ReportCheck(target string, status Status, latencySeconds float64)
 }
 
+// Checker performs periodic HTTP health checks against configured targets.
 type Checker struct {
 	client   *http.Client
 	store    Store
@@ -25,6 +27,7 @@ type Checker struct {
 	ready atomic.Bool
 }
 
+// NewChecker creates a Checker configured with the given options.
 func NewChecker(opts ...Option) (*Checker, error) {
 	o := defaults()
 	for _, opt := range opts {
@@ -55,13 +58,18 @@ func NewChecker(opts ...Option) (*Checker, error) {
 	}, nil
 }
 
-func (c *Checker) Ready() bool  { return c.ready.Load() }
+// Ready reports whether the checker has completed at least one check cycle.
+func (c *Checker) Ready() bool { return c.ready.Load() }
+
+// Store returns the result store used by the checker.
 func (c *Checker) Store() Store { return c.store }
 
+// Results returns the latest check results for all targets.
 func (c *Checker) Results() (map[string]Result, error) {
 	return c.store.GetAll(context.Background())
 }
 
+// Run starts the check loop, blocking until ctx is cancelled.
 func (c *Checker) Run(ctx context.Context) {
 	c.logger.Info("checker starting", "targets", len(c.targets), "interval", c.interval)
 

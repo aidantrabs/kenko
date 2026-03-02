@@ -32,6 +32,7 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// HandleHealth returns an HTTP handler that reports overall service health.
 func HandleHealth(checker *Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		resp := healthResponse{Status: "healthy"}
@@ -51,6 +52,7 @@ func HandleHealth(checker *Checker) http.HandlerFunc {
 	}
 }
 
+// HandleReady returns an HTTP handler that reports whether the checker is ready.
 func HandleReady(checker *Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !checker.Ready() {
@@ -62,6 +64,7 @@ func HandleReady(checker *Checker) http.HandlerFunc {
 	}
 }
 
+// HandleStatus returns an HTTP handler that reports per-target check results.
 func HandleStatus(checker *Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		results, err := checker.Results()

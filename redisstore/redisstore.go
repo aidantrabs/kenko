@@ -11,22 +11,27 @@ import (
 
 const defaultKeyPrefix = "kenko:results"
 
+// Option configures a RedisStore.
 type Option func(*RedisStore)
 
+// WithPassword sets the Redis authentication password.
 func WithPassword(password string) Option {
 	return func(s *RedisStore) { s.password = password }
 }
 
+// WithKeyPrefix sets the Redis hash key used to store results (default "kenko:results").
 func WithKeyPrefix(prefix string) Option {
 	return func(s *RedisStore) { s.keyPrefix = prefix }
 }
 
+// RedisStore is a Store backed by a Redis hash.
 type RedisStore struct {
 	rdb       *redis.Client
 	keyPrefix string
 	password  string
 }
 
+// New creates a RedisStore connected to the given address.
 func New(addr string, opts ...Option) *RedisStore {
 	s := &RedisStore{keyPrefix: defaultKeyPrefix}
 	for _, opt := range opts {
@@ -39,6 +44,7 @@ func New(addr string, opts ...Option) *RedisStore {
 	return s
 }
 
+// Set stores a result in Redis keyed by target name.
 func (s *RedisStore) Set(ctx context.Context, name string, result kenko.Result) error {
 	data, err := json.Marshal(result)
 	if err != nil {
@@ -47,6 +53,7 @@ func (s *RedisStore) Set(ctx context.Context, name string, result kenko.Result) 
 	return s.rdb.HSet(ctx, s.keyPrefix, name, data).Err()
 }
 
+// GetAll retrieves all stored results from Redis.
 func (s *RedisStore) GetAll(ctx context.Context) (map[string]kenko.Result, error) {
 	vals, err := s.rdb.HGetAll(ctx, s.keyPrefix).Result()
 	if err != nil {
@@ -64,10 +71,12 @@ func (s *RedisStore) GetAll(ctx context.Context) (map[string]kenko.Result, error
 	return out, nil
 }
 
+// Ping checks connectivity to the Redis server.
 func (s *RedisStore) Ping(ctx context.Context) error {
 	return s.rdb.Ping(ctx).Err()
 }
 
+// Client returns the underlying Redis client.
 func (s *RedisStore) Client() *redis.Client {
 	return s.rdb
 }
