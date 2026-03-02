@@ -1,8 +1,14 @@
 services:
   redis:
     image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:-kenko}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-kenko}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -11,17 +17,24 @@ services:
     build: .
     deploy:
       replicas: 3
+      resources:
+        limits:
+          memory: 128M
+    restart: unless-stopped
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-kenko}
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:6969/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:6969/ready"]
       interval: 10s
       timeout: 3s
       retries: 3
 
   nginx:
     image: nginx:1.27-alpine
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
@@ -32,16 +45,20 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.3.0
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
     depends_on:
       kenko:
         condition: service_healthy
 
   grafana:
     image: grafana/grafana:11.5.2
+    restart: unless-stopped
     ports:
       - "3002:3000"
     environment:
@@ -50,5 +67,10 @@ services:
     volumes:
       - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:
