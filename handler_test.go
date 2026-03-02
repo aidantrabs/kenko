@@ -51,7 +51,7 @@ func TestHandleHealth_WithHealthChecker(t *testing.T) {
 	HandleHealth(c)(rec, req)
 
 	var resp healthResponse
-	json.NewDecoder(rec.Body).Decode(&resp)
+	_ = json.NewDecoder(rec.Body).Decode(&resp)
 
 	if resp.Redis != "up" {
 		t.Errorf("redis = %q, want %q", resp.Redis, "up")
@@ -82,7 +82,7 @@ func TestHandleReady_NotReady(t *testing.T) {
 func TestHandleStatus_JSON(t *testing.T) {
 	c := testChecker()
 
-	c.store.Set(context.Background(), "api", Result{
+	_ = c.store.Set(context.Background(), "api", Result{
 		Target:    "api",
 		URL:       "https://api.example.com",
 		Status:    StatusHealthy,
