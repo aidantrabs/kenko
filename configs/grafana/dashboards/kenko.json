@@ -22,6 +22,40 @@
       }
     },
     {
+      "title": "Active Alerts",
+      "type": "table",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "ALERTS{alertstate=\"firing\", job=\"kenko\"}",
+          "legendFormat": "{{alertname}} - {{target}}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "severity"},
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-text"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {"type": "value", "options": {"critical": {"color": "red", "text": "CRITICAL"}}},
+                  {"type": "value", "options": {"warning": {"color": "orange", "text": "WARNING"}}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "title": "Check Latency (p95)",
       "type": "timeseries",
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
