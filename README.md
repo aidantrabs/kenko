@@ -1,10 +1,64 @@
 # kenko
 
+[![ci](https://github.com/aidantrabs/kenko/actions/workflows/ci.yml/badge.svg)](https://github.com/aidantrabs/kenko/actions/workflows/ci.yml)
+[![go reference](https://pkg.go.dev/badge/github.com/aidantrabs/kenko.svg)](https://pkg.go.dev/github.com/aidantrabs/kenko)
+[![go report card](https://goreportcard.com/badge/github.com/aidantrabs/kenko)](https://goreportcard.com/report/github.com/aidantrabs/kenko)
+[![license: mit](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 a health monitoring sdk and standalone service for go. drop health-check monitoring into your own app with a few lines of code, or run the full docker compose stack with nginx, redis, prometheus, and grafana.
 
-## sdk usage
+## install
 
-### quick setup (high-level api)
+```bash
+go get github.com/aidantrabs/kenko@latest
+```
+
+optional sub-packages:
+
+```bash
+go get github.com/aidantrabs/kenko/redisstore   # redis-backed state
+go get github.com/aidantrabs/kenko/prommetrics   # prometheus metrics
+```
+
+## usage
+
+### minimal example
+
+```go
+package main
+
+import (
+    "context"
+    "net/http"
+    "time"
+
+    "github.com/aidantrabs/kenko"
+)
+
+func main() {
+    k, err := kenko.New(
+        kenko.WithTarget("api", "https://api.example.com/health"),
+        kenko.WithTarget("db", "https://db.example.com/health"),
+        kenko.WithInterval(30 * time.Second),
+    )
+    if err != nil {
+        panic(err)
+    }
+
+    mux := http.NewServeMux()
+    k.RegisterHandlers(mux)
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+    go k.Run(ctx)
+
+    http.ListenAndServe(":8080", mux)
+}
+```
+
+this gives you `/health`, `/ready`, and `/status` endpoints using an in-memory store with zero external dependencies.
+
+### with redis and prometheus
 
 ```go
 import (
@@ -22,11 +76,13 @@ k, _ := kenko.New(
 )
 
 mux := http.NewServeMux()
-k.RegisterHandlers(mux) // adds /health, /ready, /status
+k.RegisterHandlers(mux)
 go k.Run(ctx)
 ```
 
 ### low-level api
+
+use the low-level api if you want direct access to check results without http handlers:
 
 ```go
 checker, _ := kenko.NewChecker(
