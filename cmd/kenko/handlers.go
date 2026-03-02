@@ -28,6 +28,12 @@ type targetResult struct {
 	CheckedAt  string `json:"checked_at"`
 }
 
+func writeJSON(w http.ResponseWriter, v any) {
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func handleHealth(checker *monitor.Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -44,7 +50,7 @@ func handleHealth(checker *monitor.Checker) http.HandlerFunc {
 			status = "degraded"
 		}
 
-		json.NewEncoder(w).Encode(healthResponse{
+		writeJSON(w, healthResponse{
 			Status: status,
 			Redis:  redisStatus,
 		})
@@ -57,11 +63,11 @@ func handleReady(checker *monitor.Checker) http.HandlerFunc {
 
 		if !checker.Ready() {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(healthResponse{Status: "not_ready", Redis: "unknown"})
+			writeJSON(w, healthResponse{Status: "not_ready", Redis: "unknown"})
 			return
 		}
 
-		json.NewEncoder(w).Encode(healthResponse{Status: "ready", Redis: "up"})
+		writeJSON(w, healthResponse{Status: "ready", Redis: "up"})
 	}
 }
 
@@ -86,6 +92,6 @@ func handleStatus(checker *monitor.Checker) http.HandlerFunc {
 			})
 		}
 
-		json.NewEncoder(w).Encode(resp)
+		writeJSON(w, resp)
 	}
 }
