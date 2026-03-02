@@ -1,0 +1,20 @@
+groups:
+  - name: kenko
+    rules:
+      - alert: TargetDown
+        expr: kenko_target_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.target }} is down"
+          description: "{{ $labels.target }} has been unreachable for more than 2 minutes."
+
+      - alert: HighCheckLatency
+        expr: histogram_quantile(0.95, rate(kenko_check_duration_seconds_bucket[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High check latency for {{ $labels.target }}"
+          description: "p95 check latency for {{ $labels.target }} is above 2 seconds."
