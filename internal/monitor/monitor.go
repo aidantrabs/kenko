@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aidantrabs/kenko/internal/config"
@@ -64,6 +65,7 @@ type Checker struct {
 
 	mu      sync.RWMutex
 	results map[string]Result
+	ready   atomic.Bool
 }
 
 func NewChecker(targets []config.Target, interval, timeout time.Duration, rdb *redis.Client, logger *slog.Logger) *Checker {
@@ -77,10 +79,19 @@ func NewChecker(targets []config.Target, interval, timeout time.Duration, rdb *r
 	}
 }
 
+func (c *Checker) Ready() bool {
+	return c.ready.Load()
+}
+
+func (c *Checker) RedisClient() *redis.Client {
+	return c.rdb
+}
+
 func (c *Checker) Run(ctx context.Context) {
 	c.logger.Info("checker starting", "targets", len(c.targets), "interval", c.interval)
 
 	c.checkAll(ctx)
+	c.ready.Store(true)
 
 	ticker := time.NewTicker(c.interval)
 	defer ticker.Stop()
