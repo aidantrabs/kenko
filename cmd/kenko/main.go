@@ -11,11 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	kenko "github.com/aidantrabs/kenko"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/redis/go-redis/v9"
-
-	"github.com/aidantrabs/kenko/internal/config"
-	"github.com/aidantrabs/kenko/internal/monitor"
 )
 
 func main() {
@@ -24,28 +21,28 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := loadConfig(*configPath)
 	if err != nil {
 		logger.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-	})
+	opts := configToOptions(cfg)
+	opts = append(opts, kenko.WithLogger(logger))
 
-	checker := monitor.NewChecker(cfg.Targets, cfg.CheckInterval, cfg.CheckTimeout, rdb, logger)
+	k, err := kenko.New(opts...)
+	if err != nil {
+		logger.Error("failed to create kenko", "error", err)
+		os.Exit(1)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go checker.Run(ctx)
+	go k.Run(ctx)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", handleHealth(checker))
-	mux.HandleFunc("/ready", handleReady(checker))
-	mux.HandleFunc("/status", handleStatus(checker))
+	k.RegisterHandlers(mux)
 	mux.Handle("/metrics", promhttp.Handler())
 
 	server := &http.Server{
