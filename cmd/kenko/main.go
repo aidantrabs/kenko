@@ -31,7 +31,8 @@ func main() {
 	}
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisAddr,
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
 	})
 
 	checker := monitor.NewChecker(cfg.Targets, cfg.CheckInterval, cfg.CheckTimeout, rdb, logger)
@@ -43,6 +44,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", handleHealth(checker))
+	mux.HandleFunc("/ready", handleReady(checker))
 	mux.HandleFunc("/status", handleStatus(checker))
 	mux.Handle("/metrics", promhttp.Handler())
 
