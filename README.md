@@ -124,6 +124,27 @@ targets:
 | Kenko      | 6969  | Monitor (internal only)   |
 | Redis      | 6379  | Shared state (internal)   |
 
+## Docker Compose Verification
+
+After starting the stack with `docker compose up --build -d`, verify all endpoints:
+
+```bash
+# Liveness — should return {"status":"healthy","redis":"up"}
+curl -s localhost/health | jq .
+
+# Readiness — 503 initially, 200 after first check cycle
+curl -s -o /dev/null -w '%{http_code}' localhost/ready
+
+# Target status — detailed per-target results
+curl -s localhost/status | jq .
+
+# Prometheus — check kenko metrics are being scraped
+curl -s 'localhost:9090/api/v1/query?query=kenko_target_up' | jq .
+
+# Grafana — health check
+curl -s -o /dev/null -w '%{http_code}' localhost:3002/api/health
+```
+
 ## Development
 
 ```bash
