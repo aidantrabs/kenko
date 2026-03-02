@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 type healthResponse struct {
 	Status string `json:"status"`
+	Redis  string `json:"redis"`
 }
 
 type statusResponse struct {
@@ -29,7 +31,37 @@ type targetResult struct {
 func handleHealth(checker *monitor.Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(healthResponse{Status: "healthy"})
+
+		redisStatus := "up"
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := checker.RedisClient().Ping(ctx).Err(); err != nil {
+			redisStatus = "down"
+		}
+
+		status := "healthy"
+		if redisStatus == "down" {
+			status = "degraded"
+		}
+
+		json.NewEncoder(w).Encode(healthResponse{
+			Status: status,
+			Redis:  redisStatus,
+		})
+	}
+}
+
+func handleReady(checker *monitor.Checker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if !checker.Ready() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(healthResponse{Status: "not_ready", Redis: "unknown"})
+			return
+		}
+
+		json.NewEncoder(w).Encode(healthResponse{Status: "ready", Redis: "up"})
 	}
 }
 
