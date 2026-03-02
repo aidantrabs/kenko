@@ -1,8 +1,45 @@
 # Kenko
 
-A health monitoring service that periodically checks HTTP endpoints and reports their status. Built with Go, load-balanced with NGINX, backed by Redis for shared state, and observable via Prometheus and Grafana.
+A health monitoring SDK and standalone service for Go. Drop health-check monitoring into your own app with a few lines of code, or run the full Docker Compose stack with NGINX, Redis, Prometheus, and Grafana.
 
-## Quickstart
+## SDK Usage
+
+### Quick setup (high-level API)
+
+```go
+import (
+    "github.com/aidantrabs/kenko"
+    "github.com/aidantrabs/kenko/redisstore"
+    "github.com/aidantrabs/kenko/prommetrics"
+)
+
+k, _ := kenko.New(
+    kenko.WithTarget("api", "https://api.example.com"),
+    kenko.WithTarget("db", "https://db.example.com/health"),
+    kenko.WithInterval(30 * time.Second),
+    kenko.WithStore(redisstore.New("localhost:6379")),
+    kenko.WithMetrics(prommetrics.New()),
+)
+
+mux := http.NewServeMux()
+k.RegisterHandlers(mux) // adds /health, /ready, /status
+go k.Run(ctx)
+```
+
+### Low-level API
+
+```go
+checker, _ := kenko.NewChecker(
+    kenko.WithTarget("api", "https://api.example.com"),
+    kenko.WithInterval(30 * time.Second),
+)
+go checker.Run(ctx)
+results, _ := checker.Results()
+```
+
+The root package has zero third-party dependencies. Redis and Prometheus are opt-in via sub-packages.
+
+## Standalone Quickstart
 
 ```bash
 docker compose up --build
