@@ -1,10 +1,10 @@
-# Kenko
+# kenko
 
-A health monitoring SDK and standalone service for Go. Drop health-check monitoring into your own app with a few lines of code, or run the full Docker Compose stack with NGINX, Redis, Prometheus, and Grafana.
+a health monitoring sdk and standalone service for go. drop health-check monitoring into your own app with a few lines of code, or run the full docker compose stack with nginx, redis, prometheus, and grafana.
 
-## SDK Usage
+## sdk usage
 
-### Quick setup (high-level API)
+### quick setup (high-level api)
 
 ```go
 import (
@@ -26,7 +26,7 @@ k.RegisterHandlers(mux) // adds /health, /ready, /status
 go k.Run(ctx)
 ```
 
-### Low-level API
+### low-level api
 
 ```go
 checker, _ := kenko.NewChecker(
@@ -37,28 +37,28 @@ go checker.Run(ctx)
 results, _ := checker.Results()
 ```
 
-The root package has zero third-party dependencies. Redis and Prometheus are opt-in via sub-packages.
+the root package has zero third-party dependencies. redis and prometheus are opt-in via sub-packages.
 
-## Standalone Quickstart
+## standalone quickstart
 
 ```bash
 docker compose up --build
 ```
 
-This starts 3 monitor instances behind NGINX, plus Redis, Prometheus, and Grafana.
+this starts 3 monitor instances behind nginx, plus redis, prometheus, and grafana.
 
-## Endpoints
+## endpoints
 
-| Endpoint   | Description                                      | Example                  |
+| endpoint   | description                                      | example                  |
 |------------|--------------------------------------------------|--------------------------|
-| `/health`  | Liveness probe — checks service and dependencies | `curl localhost/health`  |
-| `/ready`   | Readiness probe — 503 until first check cycle    | `curl localhost/ready`   |
-| `/status`  | Detailed status of all monitored targets         | `curl localhost/status`  |
-| `/metrics` | Prometheus metrics                               | `curl localhost/metrics` |
+| `/health`  | liveness probe — checks service and dependencies | `curl localhost/health`  |
+| `/ready`   | readiness probe — 503 until first check cycle    | `curl localhost/ready`   |
+| `/status`  | detailed status of all monitored targets         | `curl localhost/status`  |
+| `/metrics` | prometheus metrics                               | `curl localhost/metrics` |
 
-## Configuration
+## configuration
 
-Edit `configs/config.yaml`:
+edit `configs/config.yaml`:
 
 ```yaml
 port: 6969
@@ -73,35 +73,35 @@ targets:
     url: https://github.com
 ```
 
-| Field            | Description                          | Default       |
+| field            | description                          | default       |
 |------------------|--------------------------------------|---------------|
-| `port`           | HTTP server port (1-65535)           | `6969`        |
-| `check_interval` | Time between check cycles            | `30s`         |
-| `check_timeout`  | Timeout per HTTP check               | `5s`          |
-| `redis_addr`     | Redis address (host:port)            | `redis:6379`  |
-| `targets`        | List of endpoints to monitor         | —             |
-| `targets[].name` | Display name for the target          | —             |
-| `targets[].url`  | URL to check (must be valid HTTP(S)) | —             |
+| `port`           | http server port (1-65535)           | `6969`        |
+| `check_interval` | time between check cycles            | `30s`         |
+| `check_timeout`  | timeout per http check               | `5s`          |
+| `redis_addr`     | redis address (host:port)            | `redis:6379`  |
+| `targets`        | list of endpoints to monitor         | —             |
+| `targets[].name` | display name for the target          | —             |
+| `targets[].url`  | url to check (must be valid http(s)) | —             |
 
-## Architecture
+## architecture
 
 ```
                          ┌─────────────────────────────────────┐
-                         │           GitHub Actions            │
-                         │  (build, test, push Docker images)  │
+                         │           github actions            │
+                         │  (build, test, push docker images)  │
                          └──────────────────┬──────────────────┘
                                             │
                                             ▼
 ┌──────────┐    ┌─────────────────────────────────────────────────────────┐
-│  Users   │───▶│                    NGINX (Load Balancer)                │
+│  users   │───▶│                    nginx (load balancer)               │
 └──────────┘    └─────────────────────────┬───────────────────────────────┘
                                           │
                     ┌─────────────────────┼─────────────────────┐
                     ▼                     ▼                     ▼
             ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-            │  Monitor     │      │  Monitor     │      │  Monitor     │
-            │  Instance 1  │      │  Instance 2  │      │  Instance 3  │
-            │  (Go)        │      │  (Go)        │      │  (Go)        │
+            │  monitor     │      │  monitor     │      │  monitor     │
+            │  instance 1  │      │  instance 2  │      │  instance 3  │
+            │  (go)        │      │  (go)        │      │  (go)        │
             └──────┬───────┘      └──────┬───────┘      └──────┬───────┘
                    │                     │                     │
                    └─────────────────────┼─────────────────────┘
@@ -109,54 +109,55 @@ targets:
                     ┌────────────────────┼────────────────────┐
                     ▼                    ▼                    ▼
             ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-            │    Redis     │     │  Prometheus  │     │   Grafana    │
+            │    redis     │     │  prometheus  │     │   grafana    │
             │   (state)    │     │  (metrics)   │     │ (dashboards) │
             └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
-## Services
+## services
 
-| Service    | Port  | Description               |
+| service    | port  | description               |
 |------------|-------|---------------------------|
-| NGINX      | 80    | Load balancer / proxy     |
-| Prometheus | 9090  | Metrics collection        |
-| Grafana    | 3002  | Dashboards (anonymous)    |
-| Kenko      | 6969  | Monitor (internal only)   |
-| Redis      | 6379  | Shared state (internal)   |
+| nginx      | 80    | load balancer / proxy     |
+| prometheus | 9090  | metrics collection        |
+| grafana    | 3002  | dashboards (anonymous)    |
+| kenko      | 6969  | monitor (internal only)   |
+| redis      | 6379  | shared state (internal)   |
 
-## Docker Compose Verification
+## docker compose verification
 
-After starting the stack with `docker compose up --build -d`, verify all endpoints:
+after starting the stack with `docker compose up --build -d`, verify all endpoints:
 
 ```bash
-# Liveness — should return {"status":"healthy","redis":"up"}
+# liveness — should return {"status":"healthy","redis":"up"}
 curl -s localhost/health | jq .
 
-# Readiness — 503 initially, 200 after first check cycle
+# readiness — 503 initially, 200 after first check cycle
 curl -s -o /dev/null -w '%{http_code}' localhost/ready
 
-# Target status — detailed per-target results
+# target status — detailed per-target results
 curl -s localhost/status | jq .
 
-# Prometheus — check kenko metrics are being scraped
+# prometheus — check kenko metrics are being scraped
 curl -s 'localhost:9090/api/v1/query?query=kenko_target_up' | jq .
 
-# Grafana — health check
+# grafana — health check
 curl -s -o /dev/null -w '%{http_code}' localhost:3002/api/health
 ```
 
-## Development
+## development
 
 ```bash
-make build       # Build the binary
-make test        # Run tests
-make lint        # Run linter
-make run         # Run locally
-make docker-up   # Start all services
-make docker-down # Stop all services
-make clean       # Remove build artifacts
+make build       # build the binary
+make test        # run tests
+make test-cover  # run tests with coverage
+make lint        # run linter
+make run         # run locally
+make docker-up   # start all services
+make docker-down # stop all services
+make clean       # remove build artifacts
 ```
 
-## License
+## license
 
 [MIT](LICENSE)
