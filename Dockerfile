@@ -8,8 +8,12 @@ RUN CGO_ENABLED=0 go build -o /bin/kenko ./cmd/kenko
 
 FROM alpine:3.21
 
-COPY --from=build /bin/kenko /bin/kenko
-COPY configs/config.yaml /etc/kenko/config.yaml
+RUN addgroup -S kenko && adduser -S kenko -G kenko
+
+COPY --from=build --chown=kenko:kenko /bin/kenko /bin/kenko
+COPY --chown=kenko:kenko configs/config.yaml /etc/kenko/config.yaml
+
+USER kenko
 
 EXPOSE 6969
 
